@@ -6,32 +6,79 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Class Fancine_Admin_Core
  *
- * Gestiona la página de ajustes donde activar/desactivar módulos.
+ * Gestiona el menú “Fancine” y sus subpáginas (Constructor, Ajustes, CSS Docs).
  */
 class Fancine_Admin_Core {
 
     public function __construct() {
-        add_action( 'admin_menu',   [ $this, 'add_menu_page'     ] );
-        add_action( 'admin_init',   [ $this, 'register_settings' ] );
+        // Registro del menú y de los ajustes
+        add_action( 'admin_menu', [ $this, 'register_admin_pages' ] );
+        add_action( 'admin_init', [ $this, 'register_settings' ] );
     }
 
     /**
-     * Añade la página de menú “Fancine” en el admin.
+     * Registra el menú padre y sus subpáginas.
      */
-    public function add_menu_page() {
+    public function register_admin_pages() {
+        // 1) Menú padre “Fancine”
         add_menu_page(
-            __( 'Fancine Settings', 'fancine-elementor' ), // Título de página
-            __( 'Fancine',          'fancine-elementor' ), // Título de menú
-            'manage_options',                              // Capability
-            'fancine-settings',                            // Slug
-            [ $this, 'settings_page_html' ],               // Callback de render
-            'dashicons-admin-generic',                     // Icono
-            80                                             // Posición
+            __( 'Fancine', 'fancine-elementor' ),           // Título página
+            __( 'Fancine', 'fancine-elementor' ),           // Texto menú
+            'manage_options',                               // Capability
+            'fancine-dashboard',                            // Slug padre
+            [ $this, 'constructor_page' ],                  // Callback principal
+            'dashicons-admin-generic',                      // Icono
+            80                                              // Posición
+        );
+
+        // 2) Subpágina: Constructor (misma callback que la principal)
+        add_submenu_page(
+            'fancine-dashboard',                            // Parent slug
+            __( 'Constructor', 'fancine-elementor' ),       // Título página
+            __( 'Constructor', 'fancine-elementor' ),       // Texto submenú
+            'manage_options',                               // Capability
+            'fancine-dashboard',                            // Slug (misma que el padre)
+            [ $this, 'constructor_page' ]                   // Callback
+        );
+
+        // 3) Subpágina: Ajustes (nuestros checkboxes)
+        add_submenu_page(
+            'fancine-dashboard',
+            __( 'Ajustes', 'fancine-elementor' ),
+            __( 'Ajustes', 'fancine-elementor' ),
+            'manage_options',
+            'fancine-settings',
+            [ $this, 'settings_page_html' ]
+        );
+
+        // 4) Subpágina: CSS Docs
+        add_submenu_page(
+            'fancine-dashboard',
+            __( 'CSS Docs', 'fancine-elementor' ),
+            __( 'CSS Docs', 'fancine-elementor' ),
+            'manage_options',
+            'fancine-css-docs',
+            [ $this, 'css_docs_page' ]
         );
     }
 
     /**
-     * Renderiza el HTML de la página de ajustes.
+     * Callback para la página “Constructor”.
+     */
+    public function constructor_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e( 'Fancine Constructor', 'fancine-elementor' ); ?></h1>
+            <p><?php esc_html_e( 'Aquí irá tu UI para arrastrar widgets, etc.', 'fancine-elementor' ); ?></p>
+        </div>
+        <?php
+    }
+
+    /**
+     * Callback para la página “Ajustes” (módulos).
      */
     public function settings_page_html() {
         if ( ! current_user_can( 'manage_options' ) ) {
@@ -52,10 +99,25 @@ class Fancine_Admin_Core {
     }
 
     /**
-     * Registra el setting y los campos de la sección “Módulos”.
+     * Callback para la página “CSS Docs”.
+     */
+    public function css_docs_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e( 'Fancine CSS Docs', 'fancine-elementor' ); ?></h1>
+            <p><?php esc_html_e( 'Documentación de clases y utilidades CSS.', 'fancine-elementor' ); ?></p>
+        </div>
+        <?php
+    }
+
+    /**
+     * Registra la opción y los campos de la sección “Available Modules”.
      */
     public function register_settings() {
-        // 1) Registramos la opción que guardará los slugs activos
+        // 1) Opción array para slugs activos
         register_setting(
             'fancine_settings',
             Fancine_Module_Manager::OPTION_ACTIVE_MODULES,
@@ -66,7 +128,7 @@ class Fancine_Admin_Core {
             ]
         );
 
-        // 2) Creamos la sección de módulos
+        // 2) Sección de módulos
         add_settings_section(
             'fancine_modules_section',
             __( 'Available Modules', 'fancine-elementor' ),
@@ -74,7 +136,7 @@ class Fancine_Admin_Core {
             'fancine-settings'
         );
 
-        // 3) Por cada módulo registrado, añadimos un checkbox
+        // 3) Por cada módulo, un checkbox
         $manager = Fancine_Module_Manager::instance();
         $all     = $manager->get_all_modules();
 
@@ -91,16 +153,16 @@ class Fancine_Admin_Core {
     }
 
     /**
-     * Callback para la descripción de la sección.
+     * Descripción de la sección de módulos.
      */
     public function modules_section_callback() {
-        echo '<p>' . esc_html__( 'Selecciona qué módulos quieres activar en tu plugin.', 'fancine-elementor' ) . '</p>';
+        echo '<p>' . esc_html__( 'Marca los módulos que quieres activar:', 'fancine-elementor' ) . '</p>';
     }
 
     /**
-     * Callback para renderizar cada checkbox de módulo.
+     * Renderiza el checkbox de cada módulo.
      *
-     * @param array $args Recibe ['slug' => 'blog-posts']
+     * @param array $args ['slug'=>'blog-posts']
      */
     public function module_checkbox_field( $args ) {
         $slug        = $args['slug'];
@@ -117,12 +179,10 @@ class Fancine_Admin_Core {
     }
 
     /**
-     * Sanitiza el array de módulos seleccionados,
-     * activa/desactiva cada módulo y devuelve
-     * el array limpio para guardar en BD.
+     * Sanitiza y actualiza los módulos activos al guardar ajustes.
      *
-     * @param mixed $input Lo que viene del form.
-     * @return array       Lista de slugs válidos.
+     * @param mixed $input
+     * @return array
      */
     public function sanitize_active_modules( $input ) {
         $manager = Fancine_Module_Manager::instance();
@@ -130,7 +190,6 @@ class Fancine_Admin_Core {
         $new     = [];
 
         if ( is_array( $input ) ) {
-            // Solo permitimos slugs válidos
             foreach ( $input as $slug ) {
                 if ( in_array( $slug, $all, true ) ) {
                     $new[] = $slug;
@@ -138,13 +197,13 @@ class Fancine_Admin_Core {
             }
         }
 
-        // Activamos los nuevos
+        // Activar nuevos
         foreach ( $new as $slug ) {
             if ( ! $manager->is_active( $slug ) ) {
                 $manager->activate_module( $slug );
             }
         }
-        // Desactivamos los que ya no están
+        // Desactivar los eliminados
         $old = get_option( Fancine_Module_Manager::OPTION_ACTIVE_MODULES, [] );
         foreach ( $old as $slug ) {
             if ( ! in_array( $slug, $new, true ) ) {
