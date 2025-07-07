@@ -143,9 +143,8 @@ if ( is_admin() ) {
 // ——— TEST MÓDULOS ACTIVOS EN ADMIN ———
 add_action( 'admin_notices', function() {
     $modules = Fancine_Module_Manager::instance()->get_modules();
-    $slugs   = array_keys( $modules );
-    $list    = ! empty( $slugs ) ? implode( ', ', $slugs ) : '— ninguno —';
+    $list    = ! empty( $modules ) ? implode( ', ', array_keys( $modules ) ) : '— ninguno —';
     echo '<div class="notice notice-info is-dismissible"><p>';
     echo '<strong>Fancine</strong> módulos activos: ' . esc_html( $list );
     echo '</p></div>';
-} );
+}, 100 );
