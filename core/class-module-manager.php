@@ -1,12 +1,12 @@
 <?php
-// core/class-module-manager.php
-defined( 'ABSPATH' ) || exit;
-
 /**
- * Class Fancine_Module_Manager
+ * core/class-module-manager.php
  *
  * Gestor de módulos para Fancine Elementor Addons Pro.
  */
+
+defined( 'ABSPATH' ) || exit;
+
 class Fancine_Module_Manager {
     /**
      * Instancia singleton.
