@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 class Fancine_Admin_Core {
 
     public function __construct() {
-        add_action( 'admin_menu',   [ $this, 'add_menu_page'    ] );
+        add_action( 'admin_menu',   [ $this, 'add_menu_page'     ] );
         add_action( 'admin_init',   [ $this, 'register_settings' ] );
     }
 
@@ -55,7 +55,7 @@ class Fancine_Admin_Core {
      * Registra el setting y los campos de la sección “Módulos”.
      */
     public function register_settings() {
-        // Registramos la opción array que guardará los slugs activos
+        // 1) Registramos la opción que guardará los slugs activos
         register_setting(
             'fancine_settings',
             Fancine_Module_Manager::OPTION_ACTIVE_MODULES,
@@ -66,41 +66,63 @@ class Fancine_Admin_Core {
             ]
         );
 
-        // Sección sin texto (solo para agrupar los campos)
+        // 2) Creamos la sección de módulos
         add_settings_section(
             'fancine_modules_section',
             __( 'Available Modules', 'fancine-elementor' ),
-            '__return_false',
+            [ $this, 'modules_section_callback' ],
             'fancine-settings'
         );
 
-        // Por cada módulo registrado, añadimos un checkbox
+        // 3) Por cada módulo registrado, añadimos un checkbox
         $manager = Fancine_Module_Manager::instance();
         $all     = $manager->get_all_modules();
-        $active  = get_option( Fancine_Module_Manager::OPTION_ACTIVE_MODULES, [] );
 
         foreach ( $all as $slug => $config ) {
-            $label = esc_html( ucwords( str_replace( '-', ' ', $slug ) ) );
             add_settings_field(
                 'fancine_module_' . $slug,
-                sprintf(
-                    '<label><input type="checkbox" name="%1$s[]" value="%2$s"%3$s /> %4$s</label>',
-                    esc_attr( Fancine_Module_Manager::OPTION_ACTIVE_MODULES ),
-                    esc_attr( $slug ),
-                    in_array( $slug, $active, true ) ? ' checked' : '',
-                    $label
-                ),
-                '__return_false',
+                esc_html( ucwords( str_replace( '-', ' ', $slug ) ) ),
+                [ $this, 'module_checkbox_field' ],
                 'fancine-settings',
-                'fancine_modules_section'
+                'fancine_modules_section',
+                [ 'slug' => $slug ]
             );
         }
+    }
+
+    /**
+     * Callback para la descripción de la sección.
+     */
+    public function modules_section_callback() {
+        echo '<p>' . esc_html__( 'Selecciona qué módulos quieres activar en tu plugin.', 'fancine-elementor' ) . '</p>';
+    }
+
+    /**
+     * Callback para renderizar cada checkbox de módulo.
+     *
+     * @param array $args Recibe ['slug' => 'blog-posts']
+     */
+    public function module_checkbox_field( $args ) {
+        $slug        = $args['slug'];
+        $option_name = Fancine_Module_Manager::OPTION_ACTIVE_MODULES;
+        $active      = get_option( $option_name, [] );
+
+        printf(
+            '<label><input type="checkbox" name="%1$s[]" value="%2$s"%3$s /> %4$s</label>',
+            esc_attr( $option_name ),
+            esc_attr( $slug ),
+            checked( in_array( $slug, $active, true ), true, false ),
+            esc_html( ucwords( str_replace( '-', ' ', $slug ) ) )
+        );
     }
 
     /**
      * Sanitiza el array de módulos seleccionados,
      * activa/desactiva cada módulo y devuelve
      * el array limpio para guardar en BD.
+     *
+     * @param mixed $input Lo que viene del form.
+     * @return array       Lista de slugs válidos.
      */
     public function sanitize_active_modules( $input ) {
         $manager = Fancine_Module_Manager::instance();
